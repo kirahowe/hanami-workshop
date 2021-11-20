@@ -1,4 +1,86 @@
-;; # My Hanami workspace!
+;; # Welcome to the workshop on visualizing data with Hanami!
+
+;; I'm Kira. I work with a UK-based company called Swirrl building open data publishing tools.
+
+;; ## Intro
+
+;; **Who is this for?**
+
+;; People interested in data visualization but new to Hanami. We'll assume some familiarity with
+;; Clojure and a working Clojure development environment, but no experience with any of the tools
+;; or libraries in this workshop. Specifically I'll assume you already have Clojure and a Clojure
+;; IDE set up on your computer.
+
+;; **Outcomes**
+
+;; By the end if this workshop, the goal is for everyone to be able to create some basic data
+;; visualizations of arbitrary datasets using Hanami.
+
+;; ## Outline
+
+;;   1. Quick background -- What is Vega-Lite (VL)? Hanami? Clerk?
+;;   2. Basics of Hanami -- How does it work? What does it do? What is its connection to VL?
+;;   3. Practice together -- Exploring some different kinds of data visualization with Hanami
+
+;; ## Quick Background
+
+;; ### Clerk
+
+;; _https://github.com/nextjournal/clerk_
+
+;; Turns a clojure namespace into a "notebook", an HTML page you can render in your browser.
+
+;; It also includes all kinds of helpful utilities for a seamless data exploration experience,
+;; like this filewatcher and server, and renderers for various different special kinds of data,
+;; including Vega-Lite specifications, which we'll make use of today.
+
+
+;; ## ✅ Set up a clerk notebook on your machine!
+
+;; ➡️ Make a new Clojure project with a `deps.edn` file with these contents:
+
+;; ```clj
+;; {:paths ["src" "resources"]
+;;  :deps {org.clojure/clojure {:mvn/version "1.10.3"}
+;;         aerial.hanami/aerial.hanami {:mvn/version "0.15.1"}
+;;         io.github.nextjournal/clerk {:mvn/version "0.2.214"}}}
+;; ```
+
+
+;; ### Vega-Lite
+
+;; A "grammar for graphics", sort of like a language but instead of describing arbitrary
+;; instructions for a computer to execute, it describes data visualizations (using JSON).
+;; A declarative way to describe how to visually encode data and interactions into a format
+;; that can be rendered in a browser. Can think of it like any other language, made up of
+;; words and rules for combining those words.
+
+;; | "word" | description |
+;; | -- | -- |
+;; | `data` | input for the visualisation |
+;; | `mark` | shape/type of graphics to use |
+;; | `encoding` | mapping between data and marks |
+;; | `transform` | e.g. filter, aggregate, bin, etc. |
+;; | `scale` | meta-info about how the data should fit into the visualisation |
+;; | `guides ` | legends, labels |
+
+
+;; **"rules"**
+
+;; `concat, layer, repeat, facet, resolve`
+
+
+;; Much more to VL, but this is enough to get started.
+
+;;  _https://vega.github.io/vega-lite/docs/_
+
+;; #### Example
+
+
+
+;; ## Setup
+
+;;
 
 (ns workshop.hanami
   (:require
@@ -13,9 +95,15 @@
   (clerk/serve! {:browse? true :watch-paths ["src"]})
   (clerk/show! "src/workshop/hanami.clj"))
 
-;; For later, to execute when we want to stop the filewatcher
-(comment
-  (beholder/stop filewatcher))
+;; ## Vega-Lite absolute basics
+
+;; VL is essentially a declarative JSON-based language for describing data visualisations.
+;;
+
+;; ### Sidenote - data sources
+
+;; https://climate-change.data.gov.uk
+;; https://beta.gss-data.org.uk/datasets
 
 
 (def hanami-graph
