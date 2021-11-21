@@ -226,6 +226,8 @@ ht/bar-chart
 
 ;; https://beta.gss-data.org.uk/datasets
 
+;; https://www.kaggle.com/datasets
+
 ;; ### Hanami chart
 
 (def hanami-chart
@@ -294,59 +296,42 @@ ht/bar-chart
 
 (-> custom-trend-chart clerk/vl)
 
-
 ;; ### Hanamifying the example from earlier
 
-(def year-aggregate-layer
+(def year-labels-layer
+  {:mark {:type "text" :baseline "top"}
+   :encoding (assoc ht/xy-encoding
+                    :text {:aggregate :TXTAGG :field :TXT}
+                    ::ht/defaults {:TOOLTIP RMV})})
+
+(def stacked-decade-chart
   (assoc ht/layer-chart
-         ::ht/defaults
-         {}))
+         :encoding ht/xy-encoding
+         :config {:text {:dx 3 :dy 1 :align "left"}}
+         ::ht/defaults {:XAXIS {:tickCount 11}
+                        :TRANSFORM [{:calculate "year(datum.Date)" :as "year"}
+                                    {:calculate "floor(datum.year / 10)" :as "decade"}
+                                    {:calculate "(datum.year % 10) + (month(datum.Date)/12)" :as "scaled_date"}]
+                        :YSCALE {:zero false}
+                        :COLOR {:field "decade" :scale {:scheme "magma"}}}))
 
 (def hanami-co2-concentration-chart
-  ;; {:data {:url "https://vega.github.io/vega-lite/data/co2-concentration.csv"}
-  ;;  :width 700
-  ;;  :height 500
-  ;;  :transform [{:calculate "year(datum.Date)" :as "year"}
-  ;;              {:calculate "floor(datum.year / 10)" :as "decade"}
-  ;;              {:calculate "(datum.year % 10) + (month(datum.Date)/12)" :as "scaled_date"}]
-  ;;  :encoding {:x {:type "quantitative" :title "Year into Decade" :axis {:tickCount 11}}
-  ;;             :y {:title "CO2 concentration in ppm" :type "quantitative" :scale {:zero false}}
-  ;;             :color {:field "decade" :scale {:scheme "magma"}}}
-  ;;  :layer [{:mark "line" :encoding {:x {:field "scaled_date"} :y {:field "CO2"}}}
-  ;;          {:mark {:type "text" :baseline "top"}
-  ;;           :encoding {:x {:aggregate "min" :field "scaled_date"}
-  ;;                      :y {:aggregate {:argmin "scaled_date"} :field "CO2"}
-  ;;                      :text {:aggregate {:argmin "scaled_date"} :field "year"}}}]
-  ;;  :config {:text {:align "left" :dx 3 :dy 1}}}
-  (hc/xform ht/layer-chart
+  (hc/xform stacked-decade-chart
             :UDATA "https://vega.github.io/vega-lite/data/co2-concentration.csv"
-            :TRANSFORM [{:calculate "year(datum.Date)" :as "year"}
-                        {:calculate "floor(datum.year / 10)" :as "decade"}
-                        {:calculate "(datum.year % 10) + (month(datum.Date)/12)" :as "scaled_date"}]
-            :X "scaled_date"
-            :Y "CO2"
-            :XTITLE "Year into decade"
-            :XAXIS {:tickCount 11}
             :WIDTH 700
             :HEIGHT 500
-            :YSCALE {:zero false}
-            :YTITLE "CO2 concentration in ppm"
             :BACKGROUND "white"
-            :LAYER [ht/line-layer
-                    ;; {:mark {:type "text" :baseline "top"}
-                    ;;  :width 500
-                    ;;  :height 700
-                    ;;  :encoding {:x {:aggregate "min" :field "scaled_date"}
-                    ;;             :y {:aggregate {:argmin "scaled_date"} :field "CO2"}
-                    ;;             :text {:aggregate {:argmin "scaled_date"} :field "year"}}}
-                    ;; (hc/xform ht/text-layer
-                    ;;           :WIDTH 700
-                    ;;           :HEIGHT 500
-                    ;;           :YSCALE {:zero false}
-                    ;;           :TXT "year"
-                    ;;           :BASELINE "top"
-                    ;;           :X "scaled_date"
-                    ;;           :Y "CO2")
-                    ]))
+            :LAYER [(hc/xform ht/line-layer
+                              :X "scaled_date"
+                              :Y "CO2"
+                              :XTITLE "Year into Decade"
+                              :YTITLE "CO2 concentration in ppm")
+                    (hc/xform year-labels-layer
+                              :X "scaled_date"
+                              :XAGG "min"
+                              :Y "CO2"
+                              :YAGG {:argmin "scaled_date"}
+                              :TXT "year"
+                              :TXTAGG {:argmin "scaled_date"})]))
 
 (clerk/vl hanami-co2-concentration-chart)
