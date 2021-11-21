@@ -1,4 +1,4 @@
 {:paths ["src" "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.10.3"}
         aerial.hanami/aerial.hanami {:mvn/version "0.15.1"}
-        io.github.nextjournal/clerk {:mvn/version "0.2.214"}}}
+        io.github.nextjournal/clerk {:mvn/version "0.3.233"}}}
