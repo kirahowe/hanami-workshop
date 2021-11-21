@@ -18,11 +18,9 @@
 
 ;; ## Outline
 
-;;   1. Quick background -- What is Vega-Lite (VL)? Hanami? Clerk?
+;;   1. Quick background -- What is Vega-Lite (VL)? Also Clerk
 ;;   2. Basics of Hanami -- How does it work? What does it do? What is its connection to VL?
 ;;   3. Practice together -- Exploring some different kinds of data visualization with Hanami
-
-;; Headers that start with emojis are instructions to pay attention to and/or do yourself.
 
 ;; ## Quick Background
 
@@ -45,7 +43,7 @@
 ;; {:paths ["src" "resources"]
 ;;  :deps {org.clojure/clojure {:mvn/version "1.10.3"}
 ;;         aerial.hanami/aerial.hanami {:mvn/version "0.15.1"}
-;;         io.github.nextjournal/clerk {:mvn/version "0.2.214"}}}
+;;         io.github.nextjournal/clerk {:mvn/version "0.3.233"}}}
 ;; ```
 
 
@@ -88,11 +86,9 @@
 ;; | `scale` | meta-info about how the data should fit into the visualisation |
 ;; | `guides ` | legends, labels |
 
-
 ;; **"rules"**
 
 ;; `concat, layer, repeat, facet, resolve`
-
 
 ;; Much more to VL, but this is enough to get started.
 
@@ -105,7 +101,7 @@
 
 (def vl-co2-concentration-spec
   {:data {:url "https://vega.github.io/vega-lite/data/co2-concentration.csv"}
-   :width 800
+   :width 700
    :height 500
    :transform [{:calculate "year(datum.Date)" :as "year"}
                {:calculate "floor(datum.year / 10)" :as "decade"}
@@ -122,129 +118,235 @@
 
 (clerk/vl vl-co2-concentration-spec)
 
+;; This one is kind of elaborate, but just here to show how these components of the grammar
+;; come together to make a Vega-Lite "sentence".
+
 ;; ## The Main Event - Hanami!
 
-;; ### Sidenote - data sources
+;; - Clojure wrapper for Vega-Lite
+;; - Another level of abstraction/simplification on top of Vega-Lite in Clojure
+;; - Declarative, composable, recursively parameterized visualisation templates
+
+;; **Templates** are maps of **substitution keys**
+
+;; Several **default** substitution keys and templates are defined by the library
+;; already to use as starting points
+
+@hc/_defaults
+
+;; To inspect an individual default value:
+
+(hc/get-default :BACKGROUND)
+
+;; ### Key functions:
+
+;; `hc/xform`, `hc/get-default`, `ht/view-base`, `ht/<chart-type>`
+
+;; #### Explanation
+
+;; `hc/xform` is the main/general transformation function. Takes a template and optionally
+;; a series of extra transformation key/value pairs. E.g. to substitute
+;; `:BACKGROUND` in a custom map with its default value:
+
+(hc/xform {:my-key :BACKGROUND})
+
+;; Transformations are recursive. E.g. inspect the default value for `:TOOLTIP`:
+
+(hc/get-default :TOOLTIP)
+
+;; It's definition include several values which are themselves substitution keys.
+
+;; When used in a transformation, all are replaced:
+
+(hc/xform {:my-key :TOOLTIP})
+
+;; See what happens when we supply a custom value to override a default one:
+
+(hc/xform {:my-key :TOOLTIP} :X "my custom x value")
+
+;; Good time to note the special `RMV` value:
+
+(hc/get-default :XTTITLE)
+
+RMV
+
+;; Deletes/dissocs the key from the resulting map altogether, facilitates making
+;; valid VL specs
+
+;; ### Built-in templates
+
+;; Skeleton base template:
+
+ht/view-base
+
+(hc/xform ht/view-base)
+
+;; This is still not quite a valid VL spec. See, nothing:
+
+(clerk/vl (hc/xform ht/view-base))
+
+;; Hanami supplies several common chart templates and other useful composable
+;; template pieces
+
+ht/point-chart
+
+ht/bar-chart
+
+(def point-chart
+  (hc/xform ht/point-chart
+            :UDATA "https://vega.github.io/vega-lite/data/cars.json"
+            :X "Horsepower"
+            :Y "Miles_per_Gallon"
+            :COLOR "Origin"))
+
+(clerk/vl point-chart)
+
+;; ### Data sources
+
+;; Vega-Lite expects tabular data. Lots of details here: https://vega.github.io/vega-lite/docs/data.html
+
+;; Hanami supports multiple ways of specifying the data source
+
+;; - `:DATA` - expects an explicit vector of maps, where each map has the same keys
+;; (the "header" row) pointing to the values
+;; - `:UDATA` - expects a relative URL (for example "data/cars.json") or a fully
+;; qualified URL to a csv or json data file
+;; - `:NDATA` - expects a named Vega data channel
+;; - `:FDATA` - expects the path to a `clj`, `edn`, `json`, or `csv` file.
+;; Data in `clj`, `json`, or `edn` files must be a vector of maps. Data in `csv` files is
+;; automatically converted to a vector of maps by hanami.
+
+;; Better and more explanation here: https://github.com/jsa-aerial/hanami#data-sources
+
+;; ## Examples!
+
+;; #### Sidenote - data sources
 
 ;; https://climate-change.data.gov.uk
+
 ;; https://beta.gss-data.org.uk/datasets
 
+;; ### Hanami chart
 
-(def hanami-graph
-  (hc/xform
-   ht/layer-chart
-   :FDATA "https://beta.gss-data.org.uk/download/zip-contents/live/341c08c7-9afa-5667-bd5e-d07d6d47ff1c/gss-data-org-uk-annual-mean-temp-with-trends-actual.zip/gss-data-org-uk-annual-mean-temp-with-trends-actual/data.csv"
-   :LAYER
-   [(hc/xform
-     ht/line-chart
-     :WIDTH 700
-     :XTYPE "temporal"
-     :X "Year"
-     :Y "Annual Mean Temperature"
-     :YSCALE {:zero false}
-     :TRANSFORM [{:filter {:field "Geography" :equal "UK"}}])
-    (hc/xform
-     ht/line-chart
-     :TRANSFORM [{:filter {:field "Geography" :equal "UK"}}
-                 {:loess :Y :on :X}]
-     :WIDTH 700
-     :MCOLOR "firebrick"
-     :X "Year"
-     :XTYPE "temporal"
-     :Y "Annual Mean Temperature"
-     :YSCALE {:zero false})]))
+(def hanami-chart
+  (hc/xform ht/layer-chart
+            :FDATA "resources/data/annual-mean-temp.csv"
+            :LAYER
+            [(hc/xform ht/line-chart
+                       :X "Year"
+                       :XTYPE "temporal"
+                       :Y "Annual Mean Temperature"
+                       :YSCALE {:zero false}
+                       :TRANSFORM [{:filter {:field "Geography" :equal "UK"}}]
+                       :WIDTH 700)
+             (hc/xform ht/line-chart
+                       :MCOLOR "firebrick"
+                       :X "Year"
+                       :XTYPE "temporal"
+                       :Y "Annual Mean Temperature"
+                       :YSCALE {:zero false}
+                       :TRANSFORM [{:filter {:field "Geography" :equal "UK"}}
+                                   {:loess :Y :on :X}]
+                       :WIDTH 700)]))
 
-(-> hanami-graph clerk/vl)
+(-> hanami-chart clerk/vl)
 
-;; (clerk/vl  (hc/xform
-;;             ht/layer-chart
-;;             :FID :f2 :VID :v2
-;;            :UDATA "https://vega.github.io/vega-lite/data/cars.json"
-;;            :LAYER [;; (hc/xform
-;;                    ;;  ht/point-chart :FID :f2 :VID :v2 :OPACITY 0.3
-;;                    ;;  :X "Horsepower" :Y "Miles_per_Gallon" :COLOR "Origin")
-;;                    (hc/xform
-;;                     ht/line-chart :XBIN true :YAGG :mean
-;;                     :X "Horsepower" :Y "Miles_per_Gallon" :COLOR "Origin")])
-;;           )
+;; - To remove zero as the baseline: https://vega.github.io/vega-lite/docs/scale.html#continuous-scales
+;; - Details about specifying transformations: https://vega.github.io/vega-lite/docs/transform.html
+;; - Loess transformation: https://vega.github.io/vega-lite/docs/loess.html
+
+;; ### Other side note - Clerk tabular data inspection
+
+(require '[clojure.java.io :as io])
+(require '[clojure.data.csv :as csv])
+
+(-> "resources/data/annual-mean-temp.csv"
+    slurp
+    csv/read-csv
+    clerk/use-headers
+    clerk/table)
+
+;; ### Template-local defaults
+
+(def trend-layer
+  (assoc ht/line-layer
+         ::ht/defaults {:X "Year"
+                        :XTYPE "temporal"
+                        :Y "Annual Mean Temperature"
+                        :YSCALE {:zero false}
+                        :TRANSFORM [{:filter {:field "Geography" :equal "UK"}}]
+                        :WIDTH 700}))
+
+(def trend-chart
+  (assoc ht/layer-chart
+         ::ht/defaults
+         {:LAYER
+          [(hc/xform trend-layer)
+           (hc/xform trend-layer
+                     :MCOLOR :trend-color
+                     :TRANSFORM [{:loess :Y :on :X}])]
+          :trend-color "firebrick"}))
+
+(def custom-trend-chart
+  (hc/xform trend-chart
+            :FDATA "resources/data/annual-mean-temp.csv"
+            :trend-color "orange"))
+
+(-> custom-trend-chart clerk/vl)
 
 
-;; (def vl-choropleth-spec
-;;   {:width 500,
-;;    :height 300,
-;;    :data
-;;    {:url "https://vega.github.io/vega-lite/data/us-10m.json",
-;;     :format {:type "topojson", :feature "counties"}},
-;;    :transform
-;;    [{:lookup "id",
-;;      :from
-;;      {:data {:url "https://vega.github.io/vega-lite/data/unemployment.tsv"},
-;;       :key "id",
-;;       :fields ["rate"]}}],
-;;    :projection {:type "albersUsa"},
-;;    :mark "geoshape",
-;;    :encoding {:color {:field "rate", :type "quantitative"}}})
+;; ### Hanamifying the example from earlier
 
-;; (-> vl-choropleth-spec clerk/vl)
+(def year-aggregate-layer
+  (assoc ht/layer-chart
+         ::ht/defaults
+         {}))
 
-;; (def vl-repeat-spec
-;;   {:repeat
-;;    ["Horsepower" "Miles_per_Gallon" "Acceleration" "Displacement"],
-;;    :columns 2,
-;;    :spec
-;;    {:data {:url "https://vega.github.io/vega-lite/data/cars.json"},
-;;     :mark "bar",
-;;     :encoding
-;;     {:x {:field {:repeat "repeat"}, :bin true},
-;;      :y {:aggregate "count"},
-;;      :color {:field "Origin"}}}})
+(def hanami-co2-concentration-chart
+  ;; {:data {:url "https://vega.github.io/vega-lite/data/co2-concentration.csv"}
+  ;;  :width 700
+  ;;  :height 500
+  ;;  :transform [{:calculate "year(datum.Date)" :as "year"}
+  ;;              {:calculate "floor(datum.year / 10)" :as "decade"}
+  ;;              {:calculate "(datum.year % 10) + (month(datum.Date)/12)" :as "scaled_date"}]
+  ;;  :encoding {:x {:type "quantitative" :title "Year into Decade" :axis {:tickCount 11}}
+  ;;             :y {:title "CO2 concentration in ppm" :type "quantitative" :scale {:zero false}}
+  ;;             :color {:field "decade" :scale {:scheme "magma"}}}
+  ;;  :layer [{:mark "line" :encoding {:x {:field "scaled_date"} :y {:field "CO2"}}}
+  ;;          {:mark {:type "text" :baseline "top"}
+  ;;           :encoding {:x {:aggregate "min" :field "scaled_date"}
+  ;;                      :y {:aggregate {:argmin "scaled_date"} :field "CO2"}
+  ;;                      :text {:aggregate {:argmin "scaled_date"} :field "year"}}}]
+  ;;  :config {:text {:align "left" :dx 3 :dy 1}}}
+  (hc/xform ht/layer-chart
+            :UDATA "https://vega.github.io/vega-lite/data/co2-concentration.csv"
+            :TRANSFORM [{:calculate "year(datum.Date)" :as "year"}
+                        {:calculate "floor(datum.year / 10)" :as "decade"}
+                        {:calculate "(datum.year % 10) + (month(datum.Date)/12)" :as "scaled_date"}]
+            :X "scaled_date"
+            :Y "CO2"
+            :XTITLE "Year into decade"
+            :XAXIS {:tickCount 11}
+            :WIDTH 700
+            :HEIGHT 500
+            :YSCALE {:zero false}
+            :YTITLE "CO2 concentration in ppm"
+            :BACKGROUND "white"
+            :LAYER [ht/line-layer
+                    ;; {:mark {:type "text" :baseline "top"}
+                    ;;  :width 500
+                    ;;  :height 700
+                    ;;  :encoding {:x {:aggregate "min" :field "scaled_date"}
+                    ;;             :y {:aggregate {:argmin "scaled_date"} :field "CO2"}
+                    ;;             :text {:aggregate {:argmin "scaled_date"} :field "year"}}}
+                    ;; (hc/xform ht/text-layer
+                    ;;           :WIDTH 700
+                    ;;           :HEIGHT 500
+                    ;;           :YSCALE {:zero false}
+                    ;;           :TXT "year"
+                    ;;           :BASELINE "top"
+                    ;;           :X "scaled_date"
+                    ;;           :Y "CO2")
+                    ]))
 
-;; (-> vl-repeat-spec clerk/vl)
-
-;; (def hanami-repeat
-;;   (hc/xform ht/bar-chart
-;;             :UDATA "https://vega.github.io/vega-lite/data/cars.json"
-;;             :X "Horsepower"
-;;             :YAGG "count"))
-
-;; (-> hanami-repeat clerk/vl)
-;; (def vl-time-series-spec
-;;   {:transform [{:filter "datum.symbol !== 'GOOG'"}],
-;;    :width 300,
-;;    :height 100,
-;;    :data {:url "https://vega.github.io/vega-lite/data/stocks.csv"},
-;;    :mark "rect",
-;;    :encoding
-;;    {:x
-;;     {:timeUnit "yearmonthdate",
-;;      :field "date",
-;;      :type "ordinal",
-;;      :title "Time",
-;;      :axis
-;;      {:format "%Y",
-;;       :labelAngle 0,
-;;       :labelOverlap false,
-;;       :labelColor
-;;       {:condition
-;;        {:test
-;;         {:timeUnit "monthdate",
-;;          :field "value",
-;;          :equal {:month 1, :date 1}},
-;;         :value "black"},
-;;        :value nil},
-;;       :tickColor
-;;       {:condition
-;;        {:test
-;;         {:timeUnit "monthdate",
-;;          :field "value",
-;;          :equal {:month 1, :date 1}},
-;;         :value "black"},
-;;        :value nil}}},
-;;     :color
-;;     {:aggregate "sum",
-;;      :field "price",
-;;      :type "quantitative",
-;;      :title "Price"},
-;;     :y {:field "symbol", :type "nominal", :title nil}}})
-
-;; (-> vl-time-series-spec clerk/vl)
+(clerk/vl hanami-co2-concentration-chart)
