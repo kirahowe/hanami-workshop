@@ -22,6 +22,8 @@
 ;;   2. Basics of Hanami -- How does it work? What does it do? What is its connection to VL?
 ;;   3. Practice together -- Exploring some different kinds of data visualization with Hanami
 
+;; Headers that start with emojis are instructions to pay attention to and/or do yourself.
+
 ;; ## Quick Background
 
 ;; ### Clerk
@@ -35,7 +37,7 @@
 ;; including Vega-Lite specifications, which we'll make use of today.
 
 
-;; ## ✅ Set up a clerk notebook on your machine!
+;; ### ✅ Set up a clerk notebook on your machine!
 
 ;; ➡️ Make a new Clojure project with a `deps.edn` file with these contents:
 
@@ -47,10 +49,32 @@
 ;; ```
 
 
-;; ### Vega-Lite
+;; _If you like you can copy a skeleton setup from here:_
+
+;; _https://github.com/kiramclean/hanami-workshop/tree/main_
+
+;; ➡️ Create a new `hanami.clj` namespace in `src/workshop/` with these contents:
+
+(ns workshop.hanami
+  (:require
+   [nextjournal.clerk :as clerk]
+   [aerial.hanami.common :as hc :refer [RMV]]
+   [aerial.hanami.templates :as ht]))
+
+;; ➡️ Start a repl, switch into the `workshop.hanami` namespace
+
+;; ➡️ Start the clerk web server and file watcher:
+
+(comment
+  ;; just run these once each
+  (clerk/serve! {:browse? true :watch-paths ["src"]})
+  (clerk/show! "src/workshop/hanami.clj"))
+
+;; ### Ok more background... Vega-Lite
 
 ;; A "grammar for graphics", sort of like a language but instead of describing arbitrary
 ;; instructions for a computer to execute, it describes data visualizations (using JSON).
+
 ;; A declarative way to describe how to visually encode data and interactions into a format
 ;; that can be rendered in a browser. Can think of it like any other language, made up of
 ;; words and rules for combining those words.
@@ -76,29 +100,29 @@
 
 ;; #### Example
 
+;; This is just a vega-lite spec cribbed directly from the [examples in their documentation](https://vega.github.io/vega-lite/examples/layer_line_co2_concentration.html)
+;; and converted to `edn`:
 
+(def vl-co2-concentration-spec
+  {:data {:url "https://vega.github.io/vega-lite/data/co2-concentration.csv"}
+   :width 800
+   :height 500
+   :transform [{:calculate "year(datum.Date)" :as "year"}
+               {:calculate "floor(datum.year / 10)" :as "decade"}
+               {:calculate "(datum.year % 10) + (month(datum.Date)/12)" :as "scaled_date"}]
+   :encoding {:x {:type "quantitative" :title "Year into Decade" :axis {:tickCount 11}}
+              :y {:title "CO2 concentration in ppm" :type "quantitative" :scale {:zero false}}
+              :color {:field "decade" :scale {:scheme "magma"}}}
+   :layer [{:mark "line" :encoding {:x {:field "scaled_date"} :y {:field "CO2"}}}
+           {:mark {:type "text" :baseline "top"}
+            :encoding {:x {:aggregate "min" :field "scaled_date"}
+                       :y {:aggregate {:argmin "scaled_date"} :field "CO2"}
+                       :text {:aggregate {:argmin "scaled_date"} :field "year"}}}]
+   :config {:text {:align "left" :dx 3 :dy 1}}})
 
-;; ## Setup
+(clerk/vl vl-co2-concentration-spec)
 
-;;
-
-(ns workshop.hanami
-  (:require
-   [nextjournal.clerk :as clerk]
-   [aerial.hanami.common :as hc :refer [RMV]]
-   [aerial.hanami.templates :as ht]))
-
-;; ## Setup
-;; ### Start a clerk web server and file watcher
-
-(comment
-  (clerk/serve! {:browse? true :watch-paths ["src"]})
-  (clerk/show! "src/workshop/hanami.clj"))
-
-;; ## Vega-Lite absolute basics
-
-;; VL is essentially a declarative JSON-based language for describing data visualisations.
-;;
+;; ## The Main Event - Hanami!
 
 ;; ### Sidenote - data sources
 
